@@ -1,0 +1,71 @@
+**********************************************
+BUILD YOUR QUERY TO JAVA FILE
+**********************************************
+----------------------------------------------
+1. WRITE ESQL
+----------------------------------------------
+SELECT prod, month, count(z.quant)
+FROM sales
+GROUP BY prod, month; x, y, z
+SUCH THAT x.prod = prod and x.month = x.month-1,
+          y.prod = prod and y.month = y.month+1,
+          z.prod = prod and z.month = month and z.sale > avg(x.sale) and z.sale < avg(y.sale)
+
+----------------------------------------------
+2. TRANSFROM ESQL TO LOAD FUNCTION
+transform aggregate name: fn(x.attr) -> fn_attr_0
+eg. avg(x.quant) -> avg_quant_1
+----------------------------------------------
+static void loadQ(Query q) {
+    // set table name
+    q.tableName = "sales";
+
+    // add grouping attributes
+    q.gAttrs.add("prod");
+    q.gAttrs.add("month");
+
+    // add projection
+    q.projections.add("prod");
+    q.projections.add("month");
+    q.projections.add("cnt_quant_3");
+
+    // add list of aggregate function
+    List<String> aggFns1 = new ArrayList<>();
+    List<String> aggFns2 = new ArrayList<>();
+    List<String> aggFns3 = new ArrayList<>();
+    aggFns1.add("sum_quant_1");
+    aggFns1.add("cnt_quant_1");
+    aggFns1.add("avg_quant_1");
+    aggFns2.add("sum_quant_2");
+    aggFns2.add("cnt_quant_2");
+    aggFns2.add("avg_quant_2");
+    aggFns3.add("cnt_quant_3");
+    q.aggFns.put(1, aggFns1);
+    q.aggFns.put(2, aggFns2);
+    q.aggFns.put(3, aggFns3);
+
+    // add suchthat clause
+    // no space bewteen "+" "-" "*" "/" operator  -> eg: month_0-1 month_0+1
+    q.suchthats.put(1, "prod_1 = prod_0 and month_1 = month_0-1");
+    q.suchthats.put(2, "prod_2 = prod_0 and month_2 = month_0+1");
+    q.suchthats.put(3, "prod_3 = prod_0 and month_3 = month_0 and quant_3 > avg_quant_1 and quant_3 < avg_quant_2");
+}
+-----------------------------------------------
+3. PUBLIC CONFIG: SEE loadPublic FUNCTION
+-----------------------------------------------
+q.dbName = "jdbc:postgresql://localhost:5432/emfquery";
+q.className = "Test";
+q.username = "";
+q.password = "";
+...
+-----------------------------------------------
+4. RUN IN QTest.java MAIN FUNCTION
+-----------------------------------------------
+Query q = new Query();
+loadPublic(q);
+loadQ(q);
+EMF_Gen emf = new EMF_Gen(q);
+emf.gen();
+-----------------------------------------------
+5. RUN GENERATED CODE FOR RESULT
+-----------------------------------------------
